@@ -1,43 +1,80 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -O2
+#include "index.h"
+#include "pes.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 
-all: pes
+#define INDEX_FILE ".pes/index"
 
-# Compile object files
-object.o: object.c pes.h
-	$(CC) $(CFLAGS) -c object.c -o object.o
+int index_load(Index *idx) {
+    idx->count = 0;
 
-tree.o: tree.c tree.h pes.h
-	$(CC) $(CFLAGS) -c tree.c -o tree.o
+    FILE *f = fopen(INDEX_FILE, "rb");
+    if (!f) return 0;
 
-index.o: index.c index.h pes.h
-	$(CC) $(CFLAGS) -c index.c -o index.o
+    fread(idx, sizeof(Index), 1, f);
+    fclose(f);
+    return 0;
+}
 
-commit.o: commit.c pes.h
-	$(CC) $(CFLAGS) -c commit.c -o commit.o
+int index_save(const Index *idx) {
+    mkdir(".pes", 0755);
 
-pes.o: pes.c pes.h
-	$(CC) $(CFLAGS) -c pes.c -o pes.o
+    FILE *f = fopen(INDEX_FILE, "wb");
+    if (!f) return -1;
 
-# Link final executable
-pes: object.o tree.o index.o commit.o pes.o
-	$(CC) -o pes object.o tree.o index.o commit.o pes.o -lcrypto
+    fwrite(idx, sizeof(Index), 1, f);
+    fclose(f);
+    return 0;
+}
 
-# Test targets
-test_objects: test_objects.o object.o
-	$(CC) -o test_objects test_objects.o object.o -lcrypto
+int index_add(Index *idx, const char *path) {
 
-test_tree: test_tree.o object.o tree.o
-	$(CC) -o test_tree test_tree.o object.o tree.o -lcrypto
+    mkdir(".pes", 0755);
 
-# Compile test files
-test_objects.o: test_objects.c
-	$(CC) $(CFLAGS) -c test_objects.c -o test_objects.o
+    FILE *f = fopen(path, "rb");
+    if (!f) return -1;
 
-test_tree.o: test_tree.c
-	$(CC) $(CFLAGS) -c test_tree.c -o test_tree.o
+    fseek(f, 0, SEEK_END);
+    size_t size = ftell(f);
+    rewind(f);
 
-# Clean
-clean:
-	rm -f pes test_objects test_tree *.o
-	rm -rf .pes
+    void *data = malloc(size);
+    fread(data, 1, size, f);
+    fclose(f);
+
+    ObjectID id;
+    object_write(OBJ_BLOB, data, size, &id);
+    free(data);
+
+    // update existing
+    for (int i = 0; i < idx->count; i++) {
+        if (strcmp(idx->entries[i].path, path) == 0) {
+            idx->entries[i].hash = id;
+            index_save(idx);
+            return 0;
+        }
+    }
+
+    // new entry
+    strcpy(idx->entries[idx->count].path, path);
+    idx->entries[idx->count].hash = id;
+    idx->entries[idx->count].mode = 0100644;
+
+    idx->count++;
+
+    index_save(idx);
+    return 0;
+}
+
+int index_status(const Index *idx) {
+    printf("Index contains %d entries:\n", idx->count);
+
+    for (int i = 0; i < idx->count; i++) {
+        printf("%o %s\n",
+               idx->entries[i].mode,
+               idx->entries[i].path);
+    }
+    return 0;
+}
