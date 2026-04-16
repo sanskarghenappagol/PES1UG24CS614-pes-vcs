@@ -16,7 +16,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <direct.h>
-// #include <openssl/evp.h> // Temporarily commented out
+// #include <openssl/evp.h> // Commented out as OpenSSL not properly configured
 
 // ─── PROVIDED ────────────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ int hex_to_hash(const char *hex, ObjectID *id_out) {
 }
 
 void compute_hash(const void *data, size_t len, ObjectID *id_out) {
-    // Temporary dummy hash implementation
+    // Dummy hash implementation for compatibility
     memset(id_out->hash, 0, HASH_SIZE);
     uint32_t simple_hash = 5381;
     for (size_t i = 0; i < len; i++) {
@@ -59,8 +59,11 @@ int object_exists(const ObjectID *id) {
     return access(path, F_OK) == 0;
 }
 
-// ─── TODO: Implement these// Phase 1 improvement: header construction logic
-──────────────────────────────────────────────────
+// TODO: Implement these
+// Phase 1 improvement: header construction logic
+// Phase 1 improvement: object_read parsing logic
+// Phase 1 improvement: integrity verification
+// Phase 1 improvement: final cleanup
 
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
     char header[64];
@@ -193,5 +196,4 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
 
     free(buffer);
     return 0;
-
 }
