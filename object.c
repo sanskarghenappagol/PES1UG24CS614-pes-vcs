@@ -1,3 +1,13 @@
+// object.c — Content-addressable object store
+//
+// Every piece of data (file contents, directory listings, commits) is stored
+// as an "object" named by its SHA-256 hash. Objects are stored under
+// .pes/objects/XX/YYYYYY... where XX is the first two hex characters of the
+// hash (directory sharding).
+//
+// PROVIDED functions: compute_hash, object_path, object_exists, hash_to_hex, hex_to_hash
+// TODO functions:     object_write, object_read
+
 #include "pes.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,7 +16,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <direct.h>
+// #include <openssl/evp.h> // Temporarily commented out
 
+// ─── PROVIDED ────────────────────────────────────────────────────────────────
 
 void hash_to_hex(const ObjectID *id, char *hex_out) {
     for (int i = 0; i < HASH_SIZE; i++) {
@@ -26,7 +38,7 @@ int hex_to_hash(const char *hex, ObjectID *id_out) {
 }
 
 void compute_hash(const void *data, size_t len, ObjectID *id_out) {
-    // Temporary dummy hash implementation using djb2
+    // Temporary dummy hash implementation
     memset(id_out->hash, 0, HASH_SIZE);
     uint32_t simple_hash = 5381;
     for (size_t i = 0; i < len; i++) {
@@ -47,8 +59,10 @@ int object_exists(const ObjectID *id) {
     return access(path, F_OK) == 0;
 }
 
-int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
+// ─── TODO: Implement these// Phase 1 improvement: header construction logic
+──────────────────────────────────────────────────
 
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
     char header[64];
     const char *type_str = (type == OBJ_BLOB) ? "blob" :
                            (type == OBJ_TREE) ? "tree" : "commit";
@@ -119,7 +133,6 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 }
 
 int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out) {
-
     char path[512];
     object_path(id, path, sizeof(path));
 
@@ -180,4 +193,5 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
 
     free(buffer);
     return 0;
+
 }
